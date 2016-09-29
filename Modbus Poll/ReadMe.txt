@@ -1,8 +1,8 @@
 ================================================================================
-    MICROSOFT FOUNDATION CLASS LIBRARY : Temco Modbus Poll Project Overview
+    MICROSOFT FOUNDATION CLASS LIBRARY : Open Modbus Poll RTU Project Overview
 ===============================================================================
 
-The application wizard has created this Temco Modbus Poll application for
+The application wizard has created this Open Modbus Poll RTU  application for
 you.  This application not only demonstrates the basics of using the Microsoft
 Foundation Classes but is also a starting point for writing your application.
 

@@ -39,14 +39,25 @@ protected:  // control bar embedded members
 	int m_communication_type;
 	int m_comport;
 	int m_bradrate;
-
+	HANDLE m_MultiRead_handle;
 	CString m_ipaddress;
 	int m_port;
-	int m_timeout;
+	int m_connecttimeout;
 // Generated message map functions
 	BOOL m_isconnect;
+    int  m_responsetimeout ;
+   int   m_between_time ;
+    // int m_response_timeout;
 
-  
+   /* int m_bradrate;
+    int m_Commication_Type;
+    CString m_comport;
+    CString m_ipaddress;
+    int m_between_time;
+    int m_connect_timeout;
+    int m_ipport;
+    int m_response_timeout;*/
+
 protected:
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
 	afx_msg void OnWindowManager();
@@ -68,8 +79,12 @@ public:
 //	afx_msg void OnSetupRead32783();
 	afx_msg void OnDispalyCommunication();
 	afx_msg void OnUpdateDispalyCommunication(CCmdUI *pCmdUI);
-     
+     afx_msg void OnUpdateStatusBar(CCmdUI *pCmdUI);
 	afx_msg void OnViewRegistervalueanalyzer();
+	afx_msg void OnFunctionsTestcenter();
+	afx_msg void OnEditCopy();
+	 
+	afx_msg void OnToolsDevicetester();
 };
 
 

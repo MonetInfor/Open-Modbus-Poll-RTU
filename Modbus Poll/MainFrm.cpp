@@ -10,17 +10,24 @@
 #include "global_variable_extern.h"
 #include "ModbusDllForVC.h"
 #include "RegisterValueAnalyzerDlg.h"
-
 #include "CommunicationTrafficDlg.h"
- 
 #include "Modbus PollView.h"
+#include "DeviecTesterConfigDlg.h"
+
+
+ UINT _ReadMultiRegisters(LPVOID pParam)
+ {
+	  CMainFrame* pFrame=(CMainFrame*)(pParam);
+	  pFrame->OnConnectionQuickconnectf5();
+	  return 1;
+ }
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
-//void Update_ViewData(CView* MBPollView);
-// CMainFrame
-//DWORD WINAPI _Multi_Read_Fun03_MF(LPVOID pParam);
+ void Update_ViewData(CView* MBPollView);
+ 
+	 DWORD WINAPI _Multi_Read_Fun03_MF(LPVOID pParam);
 IMPLEMENT_DYNAMIC(CMainFrame, CMDIFrameWndEx)
 
 const int  iMaxUserToolbars = 10;
@@ -46,6 +53,11 @@ ON_COMMAND(ID_DISPALY_COMMUNICATION, &CMainFrame::OnDispalyCommunication)
 ON_UPDATE_COMMAND_UI(ID_DISPALY_COMMUNICATION, &CMainFrame::OnUpdateDispalyCommunication)
  
 ON_COMMAND(ID_VIEW_REGISTERVALUEANALYZER, &CMainFrame::OnViewRegistervalueanalyzer)
+ON_UPDATE_COMMAND_UI(IDS_CONNECTION, &CMainFrame::OnUpdateStatusBar)
+ON_COMMAND(ID_FUNCTIONS_TESTCENTER, &CMainFrame::OnFunctionsTestcenter)
+ON_COMMAND(ID_EDIT_COPY, &CMainFrame::OnEditCopy)
+ 
+ON_COMMAND(ID_TOOLS_DEVICETESTER, &CMainFrame::OnToolsDevicetester)
 END_MESSAGE_MAP()
 
 static UINT indicators[] =
@@ -53,9 +65,9 @@ static UINT indicators[] =
 	ID_SEPARATOR,           // status line indicator
 	IDS_CONNECTION,
 	//IDS_ADDINFOR,
-	ID_INDICATOR_CAPS,
-	ID_INDICATOR_NUM,
-	ID_INDICATOR_SCRL,
+// 	ID_INDICATOR_CAPS,
+// 	ID_INDICATOR_NUM,
+// 	ID_INDICATOR_SCRL,
 };
 
 // CMainFrame construction/destruction
@@ -176,13 +188,25 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 // 	CMFCToolBar::SetBasicCommands(lstBasicCommands);
 
   	  //m_wndStatusBar.SetPaneInfo(0,ID_SEPARATOR,SBPS_NOBORDERS,   300);
-  	  m_wndStatusBar.SetPaneInfo(1,IDS_CONNECTION,SBPS_NOBORDERS,   300);
+  	    m_wndStatusBar.SetPaneInfo(1,IDS_CONNECTION,SBPS_NOBORDERS,   300);
 	 // m_wndStatusBar.SetPaneInfo(1,ID_BUILDING_INFO,SBPS_NOBORDERS, 300);
-	    OnConnectionQuickconnectf5();
+	     //OnConnectionQuickconnectf5();
+	    AfxBeginThread(_ReadMultiRegisters,this);
+
+
+
+		if(m_MultiRead_handle != NULL)
+			TerminateThread(m_MultiRead_handle, 0);
+		m_MultiRead_handle=NULL;
+		if (!m_MultiRead_handle)
+		{
+			m_MultiRead_handle = CreateThread(NULL,NULL,_Multi_Read_Fun03_MF,this,NULL,0);
+		}
+
 
 		m_wndToolBar.ResetAll();
-
-
+               
+                 
 	 
 
 	return 0;
@@ -203,12 +227,12 @@ BOOL CMainFrame::PreCreateWindow(CREATESTRUCT& cs)
 #ifdef _DEBUG
 void CMainFrame::AssertValid() const
 {
-	CMDIFrameWndEx::AssertValid();
+    CMDIFrameWndEx::AssertValid();
 }
 
 void CMainFrame::Dump(CDumpContext& dc) const
 {
-	CMDIFrameWndEx::Dump(dc);
+    CMDIFrameWndEx::Dump(dc);
 }
 #endif //_DEBUG
 
@@ -350,10 +374,18 @@ BOOL CMainFrame::LoadFrame(UINT nIDResource, DWORD dwDefaultStyle, CWnd* pParent
 	return TRUE;
 }
 
-
-
 void CMainFrame::OnConnectionConnect32776()
-{CString strpannel;
+{   
+	//if (m_communication_type==0)
+	//{
+	//	SetCommunicationType(0);
+	//	close_com();
+	//}
+	//else{
+	//	SetCommunicationType(1);
+	//	close_com();
+	//}
+	CString strpannel;
 	CConnectionSetup connectionsetup;
 	if (IDOK==connectionsetup.DoModal())
 	{
@@ -363,7 +395,9 @@ void CMainFrame::OnConnectionConnect32776()
 
 		m_ipaddress=connectionsetup.m_ipaddress;
 		m_port=connectionsetup.m_ipport;
-		m_timeout=connectionsetup.m_response_timeout;
+		m_responsetimeout=connectionsetup.m_response_timeout;
+        m_connecttimeout = connectionsetup.m_connect_timeout;
+        m_between_time = connectionsetup.m_between_time;
 		SetCommunicationType(m_communication_type);
 		if (m_communication_type==0)
 		{
@@ -377,7 +411,7 @@ void CMainFrame::OnConnectionConnect32776()
 				
 				 
 				SetPaneString(1,strpannel);
-
+				 
 				return;
 			} 
 			m_isconnect=TRUE;
@@ -391,7 +425,7 @@ void CMainFrame::OnConnectionConnect32776()
 			if (!Open_Socket2(m_ipaddress,m_port))
 			{
 				CString temp;
-				temp.Format(_T("%s can't be connected"),m_ipaddress.GetBuffer());
+				temp.Format(_T("%s:%d can't be connected"),m_ipaddress.GetBuffer(),m_port);
 				AfxMessageBox(temp);
 				strpannel=temp;
 				SetPaneString(1,strpannel);
@@ -400,19 +434,23 @@ void CMainFrame::OnConnectionConnect32776()
 				return;
 			}
 			m_isconnect=TRUE;
-			m_isconnect=TRUE;
+			g_online=TRUE;
 			strpannel.Format(_T("IP%s :%d"),m_ipaddress,m_port);
 			SetPaneString(1,strpannel);
 		}
-
+        
+        SetResponseTime (m_responsetimeout);
 	}
-
+	else
+	{
+	   OnConnectionQuickconnectf5();
+	}
 }
 
 
 void CMainFrame::OnDestroy()
 {
-	CMDIFrameWndEx::OnDestroy();
+	
 
  
 	if(g_data_trafficdlg !=NULL)
@@ -437,38 +475,42 @@ void CMainFrame::OnDestroy()
 		SetCommunicationType(0);
 		close_com();
 	}
-
- 
+	 
+    if(m_MultiRead_handle != NULL)
+        TerminateThread(m_MultiRead_handle, 0);
+    m_MultiRead_handle=NULL;
+	CMDIFrameWndEx::OnDestroy();
 }
 
 void CMainFrame::Read_Config(){
 	CFileFind fFind;
 	if(!fFind.FindFile(g_configfile_path))
 	{
-		WritePrivateProfileStringW(_T("Setting"),_T("Connection Type"),_T("0"),g_configfile_path);
+		WritePrivateProfileStringW(_T("MBPOLL_Setting"),_T("Connection Type"),_T("0"),g_configfile_path);
 
-		WritePrivateProfileStringW(_T("Setting"),_T("COM Port"),_T("COM1"),g_configfile_path);
-		WritePrivateProfileStringW(_T("Setting"),_T("COM_Port"),_T("1"),g_configfile_path);
+		WritePrivateProfileStringW(_T("MBPOLL_Setting"),_T("COM Port"),_T("COM1"),g_configfile_path);
+		WritePrivateProfileStringW(_T("MBPOLL_Setting"),_T("COM_Port"),_T("1"),g_configfile_path);
 
-		WritePrivateProfileStringW(_T("Setting"),_T("Baudrate"),_T("19200"),g_configfile_path);
+		WritePrivateProfileStringW(_T("MBPOLL_Setting"),_T("Baudrate"),_T("19200"),g_configfile_path);
 
 
-		WritePrivateProfileStringW(_T("Setting"),_T("IP Address"),_T("127.0.0.1"),g_configfile_path);
-		WritePrivateProfileStringW(_T("Setting"),_T("IP Port"),_T("6001"),g_configfile_path);
+		WritePrivateProfileStringW(_T("MBPOLL_Setting"),_T("IP Address"),_T("127.0.0.1"),g_configfile_path);
+		WritePrivateProfileStringW(_T("MBPOLL_Setting"),_T("IP Port"),_T("6001"),g_configfile_path);
 
-		WritePrivateProfileStringW(_T("Setting"),_T("Response Timeout"),_T("1000"),g_configfile_path);
-		WritePrivateProfileStringW(_T("Setting"),_T("Delay Between Time"),_T("1000"),g_configfile_path);
+		WritePrivateProfileStringW(_T("MBPOLL_Setting"),_T("Response Timeout"),_T("1000"),g_configfile_path);
+		WritePrivateProfileStringW(_T("MBPOLL_Setting"),_T("Delay Between Time"),_T("1000"),g_configfile_path);
 
-		WritePrivateProfileStringW(_T("Setting"),_T("Connect Timeout"),_T("1000"),g_configfile_path);
+		WritePrivateProfileStringW(_T("MBPOLL_Setting"),_T("Connect Timeout"),_T("1000"),g_configfile_path);
 	}
 
 	CString comport;
-	m_bradrate=GetPrivateProfileInt(_T("Setting"),_T("Baudrate"),19200,g_configfile_path);
-	m_communication_type=GetPrivateProfileInt(_T("Setting"),_T("Connection Type"),2,g_configfile_path);
-	m_comport=GetPrivateProfileInt(_T("Setting"),_T("COM_Port"),1,g_configfile_path);
-	GetPrivateProfileString(_T("Setting"),_T("IP Address"),_T("127.0.0.1"),m_ipaddress.GetBuffer(MAX_PATH),MAX_PATH,g_configfile_path);
-	m_port=GetPrivateProfileInt(_T("Setting"),_T("IP Port"),6001,g_configfile_path);
-	m_timeout=GetPrivateProfileInt(_T("Setting"),_T("Connect Timeout"),1000,g_configfile_path); 
+	m_bradrate=GetPrivateProfileInt(_T("MBPOLL_Setting"),_T("Baudrate"),19200,g_configfile_path);
+	m_communication_type=GetPrivateProfileInt(_T("MBPOLL_Setting"),_T("Connection Type"),2,g_configfile_path);
+	m_comport=GetPrivateProfileInt(_T("MBPOLL_Setting"),_T("COM_Port"),1,g_configfile_path);
+	GetPrivateProfileString(_T("MBPOLL_Setting"),_T("IP Address"),_T("127.0.0.1"),m_ipaddress.GetBuffer(MAX_PATH),MAX_PATH,g_configfile_path);
+	m_port=GetPrivateProfileInt(_T("MBPOLL_Setting"),_T("IP Port"),6001,g_configfile_path);
+	m_connecttimeout=GetPrivateProfileInt(_T("MBPOLL_Setting"),_T("Connect Timeout"),1000,g_configfile_path);
+    m_responsetimeout =GetPrivateProfileInt(_T("MBPOLL_Setting"),_T("Response Timeout"),1000,g_configfile_path);
 }
 void CMainFrame::OnConnectionQuickconnectf5()
 {
@@ -490,7 +532,7 @@ void CMainFrame::OnConnectionQuickconnectf5()
 			CString strpannel;
 			strpannel=temp;
 			SetPaneString(1,strpannel);
-
+			g_StrConnection=strpannel;
 			m_isconnect=FALSE;
 			g_online=FALSE;
 			return;
@@ -500,41 +542,45 @@ void CMainFrame::OnConnectionQuickconnectf5()
 		Change_BaudRate(m_bradrate);
 
 		CString strpannel;
-		strpannel.Format(_T("Port %d: %d"),m_comport,m_bradrate);
+		strpannel.Format(_T("ComPort %d: Brandrate %d"),m_comport,m_bradrate);
+		g_StrConnection=strpannel;
 		SetPaneString(1,strpannel);
 	} 
 	else
 	{
 		if (!Open_Socket2(m_ipaddress,m_port))
 		{
-			
 			temp.Format(_T("%s can't be connected"),m_ipaddress.GetBuffer());
 			AfxMessageBox(temp);
 			CString strpannel;
 			strpannel=temp;
+			g_StrConnection=strpannel;
 			SetPaneString(1,strpannel);
 			m_isconnect=FALSE;
 			g_online=FALSE;
 			return;
 		}
 		CString strpannel;
-		strpannel.Format(_T("Port %s-%d: "),m_ipaddress,m_port);
+		strpannel.Format(_T("IP: %s-Port:%d "),m_ipaddress,m_port);
+		g_StrConnection=strpannel;
 		SetPaneString(1,strpannel);
 		m_isconnect=TRUE;
 		g_online=TRUE;
 	}
+
+    SetResponseTime (m_responsetimeout);
 }
 
 
 void CMainFrame::OnConnectionDisconnect()
 {
-	if (!g_online)
-	{
-		return;
-	}
+	  if (!g_online)
+	  {
+	  	return;
+	  }
 	  SetCommunicationType(0);
 	  close_com();
-		  SetCommunicationType(1);
+	  SetCommunicationType(1);
 	  close_com();
 	  g_online=FALSE;
 	  m_isconnect=FALSE;
@@ -607,7 +653,7 @@ void CMainFrame::OnUpdateDispalyCommunication(CCmdUI *pCmdUI)
 		pCmdUI->Enable(TRUE);
 	}
 }
-/*
+
 volatile HANDLE Read_Mutex=NULL;
 DWORD WINAPI _Multi_Read_Fun03_MF(LPVOID pParam){
 	while(TRUE){
@@ -621,6 +667,7 @@ DWORD WINAPI _Multi_Read_Fun03_MF(LPVOID pParam){
 				POSITION pos=pTemplate->GetFirstDocPosition();
 				while(pos){
 					CDocument *pDoc=pTemplate->GetNextDoc(pos);
+					if (pDoc!=NULL)
 					{
 						POSITION pos=pDoc->GetFirstViewPosition();
 						while(pos){
@@ -643,6 +690,7 @@ DWORD WINAPI _Multi_Read_Fun03_MF(LPVOID pParam){
 
 void Update_ViewData(CView* MBPollView){
 	CModbusPollView* pMBPollView=(CModbusPollView*)(MBPollView);
+
 	int ID;
 	unsigned short DataBuffer[127];
 	unsigned short startAdd;
@@ -686,24 +734,59 @@ void Update_ViewData(CView* MBPollView){
 		//read_multi_tap(ID,&DataBuffer[0],startAdd,quantity);
 		CString m_Tx,m_Rx;
 		int ret=0;
-		register_critical_section.Lock();
-		if (pMBPollView->m_PLC_Addresses==1)
+		if (pMBPollView->m_apply)
 		{
-			ret=read_multi_log(ID,&DataBuffer[0],startAdd-1,quantity,&send_data[0],&rev_back_rawData[0],&Send_length,&Rev_length);
-		}
+			 
+			register_critical_section.Lock();
+			if (pMBPollView->m_PLC_Addresses==1)
+			{
+				ret=read_multi_log(ID,&DataBuffer[0],startAdd-1,quantity,&send_data[0],&rev_back_rawData[0],&Send_length,&Rev_length);
+			}
+			else
+			{
+				ret=read_multi_log(ID,&DataBuffer[0],startAdd,quantity,&send_data[0],&rev_back_rawData[0],&Send_length,&Rev_length);
+			}
+			register_critical_section.Unlock();
+		} 
 		else
 		{
-            ret=read_multi_log(ID,&DataBuffer[0],startAdd,quantity,&send_data[0],&rev_back_rawData[0],&Send_length,&Rev_length);
+
+		  if (pMBPollView->m_wronce)
+		  {
+			  register_critical_section.Lock();
+			  if (pMBPollView->m_PLC_Addresses==1)
+			  {
+				  ret=read_multi_log(ID,&DataBuffer[0],startAdd-1,quantity,&send_data[0],&rev_back_rawData[0],&Send_length,&Rev_length);
+			  }
+			  else
+			  {
+				  ret=read_multi_log(ID,&DataBuffer[0],startAdd,quantity,&send_data[0],&rev_back_rawData[0],&Send_length,&Rev_length);
+			  }
+			  register_critical_section.Unlock();
+			  pMBPollView->m_wronce=FALSE;
+		  }
+		  else
+		  {
+		     return;
+		  }
+		  
 		}
 		
-		register_critical_section.Unlock();
+		/*
+		-1:no connection
+		-2:create write error
+		-3:create read error
+		-4:time out error
+		-5:crc error
+		*/
+		
  
 	
-	 
+	    pMBPollView->m_MultiReadReturnType=ret;
 			
 	
 		++g_Tx_Rx;
-		temp.Format(_T("%06d--"),g_Tx_Rx);
+		temp.Format(_T("Tx:%06d--"),g_Tx_Rx);
 		m_Tx+=temp;
 
 		for (int i=0;i<Send_length;i++)
@@ -715,7 +798,7 @@ void Update_ViewData(CView* MBPollView){
 
 
 		++g_Tx_Rx;
-		temp.Format(_T("%06d--"),g_Tx_Rx);
+		temp.Format(_T("Rx:%06d--"),g_Tx_Rx);
 		m_Rx+=temp;
 
 		for(int i=0;i<Rev_length;i++){
@@ -725,7 +808,17 @@ void Update_ViewData(CView* MBPollView){
 
 		Traffic_Data(m_Rx);
 
-
+		 register_critical_section.Lock();
+		int tt=read_multi_log(ID,&pMBPollView->m_modeldata[0],6,2,&send_data[0],&rev_back_rawData[0],&Send_length,&Rev_length);
+		if (tt>0)
+		{
+			pMBPollView->m_isgetmodel=TRUE;
+		}
+		else
+		{
+			pMBPollView->m_isgetmodel=FALSE;
+		}
+		register_critical_section.Unlock();
 		if (ret>0)//读的正确之后，我们才把值传给view显示
 		{
 			memcpy_s(pMBPollView->m_DataBuffer,sizeof(pMBPollView->m_DataBuffer),DataBuffer,sizeof(DataBuffer));
@@ -745,30 +838,55 @@ void Update_ViewData(CView* MBPollView){
 
 	 
 }
-*/
-
 void CMainFrame::OnViewRegistervalueanalyzer()
 {
-	if (g_Draw_dlg==NULL)
-	{
-		 
-		 		g_Draw_dlg=new CRegisterValueAnalyzerDlg;
-		 		g_Draw_dlg->Create(IDD_DIALOG_CHART,this);
-		 		g_Draw_dlg->ShowWindow(SW_SHOW);
-				::PostMessage(g_Draw_dlg->m_hWnd,MY_FRESH_DRAW_GRAPHIC,0,0);
-	} 
-     else{
 
-		 if(g_Draw_dlg->IsWindowVisible())
-		 {
+	//OnConnectionConnect32776();
+    if (g_Draw_dlg==NULL)
+    {
 
-		 }
+        g_Draw_dlg=new CRegisterValueAnalyzerDlg;
+        g_Draw_dlg->Create(IDD_DIALOG_CHART,this);
+        g_Draw_dlg->ShowWindow(SW_SHOW);
+       //::PostMessage(g_Draw_dlg->m_hWnd,MY_FRESH_DRAW_GRAPHIC,0,0);
+    } 
+    else{
 
-		 else
-		 {
-			 g_is_show_Data_Traffic_Window=TRUE;
-			 g_Draw_dlg->ShowWindow(SW_SHOW);
-			 ::PostMessage(g_Draw_dlg->m_hWnd,MY_FRESH_DRAW_GRAPHIC,0,0);
-		 }
-	 }
+        if(g_Draw_dlg->IsWindowVisible())
+        {
+
+        }
+
+        else
+        {
+            g_is_show_Data_Traffic_Window=TRUE;
+            g_Draw_dlg->ShowWindow(SW_SHOW);
+            //::PostMessage(g_Draw_dlg->m_hWnd,MY_FRESH_DRAW_GRAPHIC,0,0);
+        }
+    }
+}
+void CMainFrame::OnUpdateStatusBar(CCmdUI *pCmdUI){
+	pCmdUI->Enable(TRUE);
+
+}
+ #include "TestCenter.h"
+void CMainFrame::OnFunctionsTestcenter()
+{
+	  TestCenter dlg;
+      dlg.DoModal ();
+}
+
+
+void CMainFrame::OnEditCopy()
+{
+	// OnConnectionDisconnect();
+}
+
+
+
+
+void CMainFrame::OnToolsDevicetester()
+{
+	 CDeviecTesterConfigDlg dlg;
+	 dlg.DoModal();
 }

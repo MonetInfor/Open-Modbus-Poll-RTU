@@ -4,11 +4,13 @@
 #include "Windows.h"
 #include "ModbusDllForVC.h"
 #include "gloab_define.h"
-
+#include "ado/ADO.h"
 #include "global_variable.h"
 #define DELAY_TIME	 10	//MS
 #define Modbus_Serial	0
 #define	Modbus_TCP	1
+
+
 
 BOOL GetSerialComPortNumber1(vector<CString>& szComm)
 {
@@ -108,7 +110,7 @@ CString get_ExePath(){
 	GetModuleFileName(NULL, exeFullPath, MAX_PATH); //
 	(_tcsrchr(exeFullPath, _T('\\')))[1] = 0;//
 	g_strExEPath=exeFullPath;//
-	g_configfile_path=g_strExEPath+_T("config.ini");
+	g_configfile_path=g_strExEPath+_T("T3000_config.ini");
 	return g_strExEPath;
 }
 
@@ -133,3 +135,5 @@ void Traffic_Data(CString &nCString)
 	pStatusBar = (CMFCStatusBar *) AfxGetMainWnd()->GetDescendantWindow(AFX_IDW_STATUS_BAR);
 	pStatusBar->SetPaneText(nIndext,str.GetString());
 }
+
+ 

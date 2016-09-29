@@ -50,6 +50,7 @@ BEGIN_MESSAGE_MAP(CWriteMultiRegistersDlg, CDialogEx)
 	ON_LBN_DBLCLK(IDC_LIST3, &CWriteMultiRegistersDlg::OnLbnDblclkList3)
 	ON_EN_KILLFOCUS(IDC_EDIT_ID, &CWriteMultiRegistersDlg::OnEnKillfocusEditId)
 	ON_BN_CLICKED(IDC_BUTTON1, &CWriteMultiRegistersDlg::OnBnClickedButton1)
+	ON_WM_PAINT()
 END_MESSAGE_MAP()
 
 
@@ -241,6 +242,7 @@ void CWriteMultiRegistersDlg::Transfer_Data(int index){
 }
 void CWriteMultiRegistersDlg::OnLbnDblclkList3()
 {
+    int sel=m_ListBox_registers.GetCurSel();
 	
 	if (m_dataformate<3)
 	{
@@ -335,6 +337,9 @@ void CWriteMultiRegistersDlg::OnLbnDblclkList3()
 			 m_ListBox_registers.DeleteString(index);
 			 m_ListBox_registers.InsertString(index,itemstr);
 }
+
+	m_ListBox_registers.SetCurSel(sel);
+	m_ListBox_registers.SetFocus();
 }
 
 
@@ -358,8 +363,6 @@ unsigned char rev_back_rawData[300],send_data[100];
 	 unsigned short Ret_Value;
 	 for(int i=0;i<m_quantity;i++){
 		 Data_Buffer[i]=Get_Data_Unsigned(i);
- 		 
-		// Data_Buffer_Short[i]=Ret_Value;
 	 }
  	 register_critical_section.Lock();
  	 int ret=write_multi_Short_log(m_slave_id,Data_Buffer,m_address,m_quantity,&send_data[0],&rev_back_rawData[0],&Send_length,&Rev_length);
@@ -382,6 +385,11 @@ unsigned char rev_back_rawData[300],send_data[100];
 		 m_Rx+=temp;
 	 }
 	 Traffic_Data(m_Rx);
+	 if (ret>0)
+	 {
+		 AfxMessageBox(_T("Write OK!"));
+		 return;
+	 }
 	 if (ret<0)
 	 {
 		 AfxMessageBox(_T("Write Fail,Try,again!"));
@@ -391,5 +399,15 @@ unsigned char rev_back_rawData[300],send_data[100];
 	 {
         AfxMessageBox(_T("OK!"));
 	 }
+
+}
+
+
+void CWriteMultiRegistersDlg::OnPaint()
+{
+	CPaintDC dc(this); // device context for painting
+	// TODO: Add your message handler code here
+	// Do not call CDialogEx::OnPaint() for painting messages
+	m_ListBox_registers.SetCurSel(0);
 
 }

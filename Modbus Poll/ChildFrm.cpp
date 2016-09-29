@@ -60,15 +60,16 @@ ON_COMMAND(ID_FUNCTIONS_23, &CChildFrame::OnFunctions23)
 END_MESSAGE_MAP()
 
 // CChildFrame construction/destruction
-
 CChildFrame::CChildFrame()
 {
 
-		 
+		 m_apply=TRUE;
+		 m_wronce=FALSE;
 }
 
 CChildFrame::~CChildFrame()
 {
+
 }
 
 
@@ -112,8 +113,9 @@ void CChildFrame::OnSetupRead()
 	dlg.m_address_in_cell=pModbusView->m_Address_Cell;
 	dlg.m_plc_addresses=pModbusView->m_PLC_Addresses;
 	dlg.m_address=pModbusView->m_address;
-    
-	
+    dlg.m_apply=pModbusView->m_apply;
+	dlg.m_wronce=pModbusView->m_wronce;
+	dlg.m_pWnd=this->m_hWnd;
 	if (IDOK==dlg.DoModal())
 	{
 		m_Slave_ID=dlg.m_slave_id;
@@ -126,7 +128,8 @@ void CChildFrame::OnSetupRead()
 		m_Address_Cell=dlg.m_address_in_cell;
 		m_PLC_Adresses=dlg.m_plc_addresses;
 		m_address=dlg.m_address;
-
+		m_apply=dlg.m_apply;
+		m_wronce=dlg.m_wronce;
 	}	
  //CModbusPollView* pModbusView=(CModbusPollView*)GetActiveView();
  pModbusView->m_Slave_ID=m_Slave_ID;
@@ -139,6 +142,10 @@ void CChildFrame::OnSetupRead()
  pModbusView->m_Address_Cell=m_Address_Cell;
  pModbusView->m_PLC_Addresses=m_PLC_Adresses;
  pModbusView->m_address=m_address;
+ pModbusView->m_ischangedAddress=TRUE;
+
+ pModbusView->m_apply=m_apply;
+ pModbusView->m_wronce=m_wronce;
 ::PostMessage(pModbusView->m_hWnd,MY_FRESH_MBPOLLVIEW,0,0);
  //pModbusView->OnInitialUpdate();
  pModbusView=NULL;
@@ -155,7 +162,8 @@ void CChildFrame::OnSetupRead32783()
 
 }
 
-void CChildFrame::Show_Data_Traffic_Window(){		
+void CChildFrame::Show_Data_Traffic_Window(){
+
 }
 void CChildFrame::OnDispalySigned()
 {
@@ -289,7 +297,7 @@ void CChildFrame::OnUpdateDispalyFloatinverse(CCmdUI *pCmdUI)
 
 void CChildFrame::OnUpdateDispalyHex(CCmdUI *pCmdUI)
 {
-	 pCmdUI->SetCheck(m_Display==2);
+	pCmdUI->SetCheck(m_Display==2);
 }
 
 
@@ -338,7 +346,8 @@ void CChildFrame::OnDispalyProtocoladdresses()
 	--m_address;
    pModbusView->m_address=m_address;
 	m_PLC_Adresses=0;
-	::PostMessage(pModbusView->m_hWnd,MY_FRESH_MBPOLLVIEW,0,0);
+ 
+	::SendMessage(pModbusView->m_hWnd,MY_FRESH_MBPOLLVIEW,0,0);
 	pModbusView=NULL;
 }
 
@@ -475,4 +484,25 @@ void CChildFrame::OnFunctions23()
 	 dlg.m_dataformate=m_Display;
 	 dlg.m_base0=m_PLC_Adresses;
 	 dlg.DoModal();
+}
+
+
+
+
+LRESULT CChildFrame::WindowProc(UINT message, WPARAM wParam, LPARAM lParam)
+{
+      CModbusPollView* pModbusView=(CModbusPollView*)GetActiveView();
+	  CReadWriteDefinitionDlg *pdlg=(CReadWriteDefinitionDlg *)wParam;
+	if (message==MY_READ_ONCE)
+	{
+		m_apply=pdlg->m_apply;
+		m_wronce=pdlg->m_wronce;
+		pModbusView->m_apply=m_apply;
+		pModbusView->m_wronce=m_wronce;
+		//::PostMessage(pModbusView->m_hWnd,MY_FRESH_MBPOLLVIEW,0,0);
+		return 1;
+	} 
+
+
+	return CMDIChildWndEx::WindowProc(message, wParam, lParam);
 }
